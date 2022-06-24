@@ -4,10 +4,10 @@ I go on holiday soon and I want something similar to [typelit](https://www.typel
 
 ## TODO
 
-- [ ] Display text and write over it as the cursor moves along
-- [ ] Read text in from a file
-- [ ] Validate and colorise
+- [x] Display text and write over it as the cursor moves along
+- [x] Read text in from a file
+- [x] Validate and colorise
 - [ ] Menus and feature
 - [ ] Scoring 
-- [ ] Remember persition
+- [ ] Remember position
 
