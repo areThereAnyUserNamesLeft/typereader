@@ -119,17 +119,6 @@ func (m Model) View() string {
 		}
 	}
 
-	s := fmt.Sprintf(
-		"%s%s\n\tTyped:%v - %q\tExpected:%v - %q %v",
-		typed,
-		m.Theme.StringColor(m.Theme.Text.Untyped, string(remaining)).Faint(),
-		[]rune(m.Choice),
-		m.Choice,
-		[]rune(m.Next),
-		m.Next,
-		m.spew,
-	)
-
 	var wpm float64
 	// Start counting wpm after at least two characters are typed
 	if len(m.Typed) > 1 {
@@ -144,6 +133,13 @@ func (m Model) View() string {
 	if len(wpmsCount) <= 0 {
 		wpmsCount = []float64{0}
 	}
+
+	s := fmt.Sprintf(
+		"%s%s\n\tWPM: %f",
+		typed,
+		m.Theme.StringColor(m.Theme.Text.Untyped, string(remaining)).Faint(),
+		wpm,
+	)
 
 	return s
 }

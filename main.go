@@ -41,6 +41,8 @@ func main() {
 			text = strings.ReplaceAll(text, "’", "'")
 			text = strings.ReplaceAll(text, "“", "\"")
 			text = strings.ReplaceAll(text, "”", "\"")
+
+			text = strings.ReplaceAll(text, "—", "-")
 			chunks := [][]rune{}
 			// Break text to be typed one paragraph at a time
 			texts := strings.Split(text, "\n\n")
