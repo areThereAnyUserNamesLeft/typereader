@@ -31,24 +31,22 @@ func main() {
 	app := &cli.App{
 		Name:  "typereader",
 		Usage: "read as you type",
-		Flags: []cli.Flag{
-			// &cli.StringFlag{
-			// 	Name:     "lang",
-			// 	Value:    "english",
-			// 	Usage:    "language for the greeting",
-			// 	Required: true,
-			// },
-		},
+		Flags: []cli.Flag{},
 		Action: func(cCtx *cli.Context) error {
 			text, err := FromFile(cCtx.Args().Get(0))
 			if err != nil {
 				panic(err)
 			}
+			// Replace out all weird quotes for keyboard friendly alternatives
 			text = strings.ReplaceAll(text, "’", "'")
+			text = strings.ReplaceAll(text, "“", "\"")
+			text = strings.ReplaceAll(text, "”", "\"")
 			chunks := [][]rune{}
+			// Break text to be typed one paragraph at a time
 			texts := strings.Split(text, "\n\n")
 
 			for i := range texts {
+				// Trim out the other new lines
 				text = strings.Trim(texts[i], "\n")
 				chunks = append(chunks, []rune(text))
 			}

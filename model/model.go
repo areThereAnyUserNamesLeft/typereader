@@ -23,9 +23,9 @@ var (
 
 type Model struct {
 	currentChunk int
-	Choice       string
-	Next         string
-	out          []rune
+	Choice       string // for dubugging
+	Next         string // for dubugging
+	spew         string // for dubugging
 	Percent      float64
 	Chunk        [][]rune
 	Typed        []rune
@@ -50,9 +50,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Start = time.Now()
 		}
 
+		m.spew = ""
+
 		// User wants to cancel the typing test
 		if msg.Type == tea.KeyCtrlC {
 			return m, tea.Quit
+		}
+
+		if msg.String() == " " {
+			m.spew = fmt.Sprint("it's a space")
+			msg.Runes = []rune{' '}
 		}
 
 		// Deleting characters
@@ -61,10 +68,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Ensure we are adding characters only that we want the user to be able to type
-		if msg.Type != tea.KeyRunes {
+		// There may be need to add some outliers like I did with <SPACE>
+		if msg.Type != tea.KeyRunes && msg.String() != " " {
 			return m, nil
 		}
 
+		// Bounce to the next chunk when we are done with the current one
 		if len(m.Typed) >= len(m.Chunk[m.currentChunk]) {
 			m.currentChunk++
 			m.Typed = []rune{}
@@ -72,7 +81,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		char := msg.Runes[0]
-		m.out = msg.Runes
 		m.Choice = string(msg.Runes[0])
 		next := rune(m.Chunk[m.currentChunk][len(m.Typed)])
 		if len(m.Typed) == len(m.Chunk[m.currentChunk])-1 {
@@ -80,8 +88,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.Next = string(m.Chunk[m.currentChunk][len(m.Typed)+1])
 		}
-		// To properly account for line wrapping we need to always insert a new line
-		// Where the next line starts to not break the user interface, even if the user types a random character
 
 		m.Typed = append(m.Typed, msg.Runes...)
 
@@ -121,7 +127,7 @@ func (m Model) View() string {
 		m.Choice,
 		[]rune(m.Next),
 		m.Next,
-		m.out,
+		m.spew,
 	)
 
 	var wpm float64
