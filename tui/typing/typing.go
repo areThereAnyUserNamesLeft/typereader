@@ -1,4 +1,4 @@
-package model
+package typing
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/areThereAnyUserNamesLeft/typereader/theme"
 	// "github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -76,6 +77,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Bounce to the next chunk when we are done with the current one
 		if len(m.Typed) >= len(m.Chunk[m.currentChunk]) {
 			m.currentChunk++
+			m.Percent = 0
 			m.Typed = []rune{}
 			return m, nil
 		}
@@ -134,12 +136,16 @@ func (m Model) View() string {
 		wpmsCount = []float64{0}
 	}
 
-	s := fmt.Sprintf(
-		"%s%s\n\tWPM: %f",
+	text := fmt.Sprintf(
+		"%s%s\n",
 		typed,
 		m.Theme.StringColor(m.Theme.Text.Untyped, string(remaining)).Faint(),
+	)
+	wpmText := fmt.Sprintf(
+		"WPM: %f",
 		wpm,
 	)
+	style := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("202")).Align(lipgloss.Center).Width(120)
 
-	return s
+	return style.Render(text) + "\n" + style.Render(wpmText)
 }

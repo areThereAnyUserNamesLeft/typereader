@@ -7,9 +7,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/areThereAnyUserNamesLeft/typereader/model"
 	"github.com/areThereAnyUserNamesLeft/typereader/theme"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 )
@@ -33,7 +35,8 @@ func main() {
 		Usage: "read as you type",
 		Flags: []cli.Flag{},
 		Action: func(cCtx *cli.Context) error {
-			text, err := FromFile(cCtx.Args().Get(0))
+			termenv.ClearScreen()
+			text, err := FromFile(cCtx.Args().First())
 			if err != nil {
 				panic(err)
 			}
@@ -41,7 +44,6 @@ func main() {
 			text = strings.ReplaceAll(text, "’", "'")
 			text = strings.ReplaceAll(text, "“", "\"")
 			text = strings.ReplaceAll(text, "”", "\"")
-
 			text = strings.ReplaceAll(text, "—", "-")
 			chunks := [][]rune{}
 			// Break text to be typed one paragraph at a time
@@ -53,10 +55,16 @@ func main() {
 				chunks = append(chunks, []rune(text))
 			}
 
-			program := tea.NewProgram(model.Model{
-				Chunk: chunks,
-				Theme: theme.DefaultTheme(),
-			})
+			program := tea.NewProgram(
+				tui.Model{
+					TextFile: cCtx.Args().First(),
+					State:    tui.Type,
+					Typing: typing.Model{
+						Chunk: chunks,
+						Theme: theme.DefaultTheme(),
+					},
+				},
+			)
 			eg, _ := errgroup.WithContext(context.Background())
 			eg.Go(func() error {
 				return program.Start()
