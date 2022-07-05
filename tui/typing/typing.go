@@ -23,12 +23,13 @@ var (
 )
 
 type Model struct {
+	WindowSize   tea.WindowSizeMsg
 	currentChunk int
 	Choice       string // for dubugging
 	Next         string // for dubugging
 	spew         string // for dubugging
 	Percent      float64
-	Chunk        [][]rune
+	Chunks       [][]rune
 	Typed        []rune
 	Start        time.Time
 	Mistakes     int
@@ -51,15 +52,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Start = time.Now()
 		}
 
-		m.spew = ""
-
 		// User wants to cancel the typing test
 		if msg.Type == tea.KeyCtrlC {
 			return m, tea.Quit
 		}
 
 		if msg.String() == " " {
-			m.spew = fmt.Sprint("it's a space")
 			msg.Runes = []rune{' '}
 		}
 
@@ -75,7 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Bounce to the next chunk when we are done with the current one
-		if len(m.Typed) >= len(m.Chunk[m.currentChunk]) {
+		if len(m.Typed) >= len(m.Chunks[m.currentChunk]) {
 			m.currentChunk++
 			m.Percent = 0
 			m.Typed = []rune{}
@@ -84,11 +82,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		char := msg.Runes[0]
 		m.Choice = string(msg.Runes[0])
-		next := rune(m.Chunk[m.currentChunk][len(m.Typed)])
-		if len(m.Typed) == len(m.Chunk[m.currentChunk])-1 {
-			m.Next = string(m.Chunk[m.currentChunk+1][0])
+		next := rune(m.Chunks[m.currentChunk][len(m.Typed)])
+		if len(m.Typed) == len(m.Chunks[m.currentChunk])-1 {
+			m.Next = string(m.Chunks[m.currentChunk+1][0])
 		} else {
-			m.Next = string(m.Chunk[m.currentChunk][len(m.Typed)+1])
+			m.Next = string(m.Chunks[m.currentChunk][len(m.Typed)+1])
 		}
 
 		m.Typed = append(m.Typed, msg.Runes...)
@@ -99,6 +97,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.WindowSizeMsg:
+		m.WindowSize = msg
 		return m, nil
 	default:
 		return m, nil
@@ -110,15 +109,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the typed characters (with errors displayed in red) and remaining
 // characters to be typed in a faint display
 func (m Model) View() string {
-	remaining := m.Chunk[m.currentChunk][len(m.Typed):]
+	remaining := m.Chunks[m.currentChunk][len(m.Typed):]
 
 	var typed string
 	for i, c := range m.Typed {
-		if c == rune(m.Chunk[m.currentChunk][i]) {
+		if c == rune(m.Chunks[m.currentChunk][i]) {
 			typed += m.Theme.StringColor(m.Theme.Text.Typed, string(c)).String()
+		} else if c == ' ' && rune(m.Chunks[m.currentChunk][i]) == '\n' { // && c == ' ' {
+			typed += m.Theme.StringColor(m.Theme.Text.Typed, string('\n')).String()
 		} else {
-			typed += m.Theme.StringColor(m.Theme.Text.Error, string(m.Chunk[m.currentChunk][i])).String()
+			typed += m.Theme.StringColor(m.Theme.Text.Error, string(m.Chunks[m.currentChunk][i])).String()
 		}
+		m.spew = fmt.Sprintf("c = '%s'", string(c))
 	}
 
 	var wpm float64
@@ -145,7 +147,7 @@ func (m Model) View() string {
 		"WPM: %f",
 		wpm,
 	)
-	style := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("202")).Align(lipgloss.Center).Width(120)
+	style := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("202")).Align(lipgloss.Center).Width(m.WindowSize.Width)
 
-	return style.Render(text) + "\n" + style.Render(wpmText)
+	return style.Render(text) + "\n" + style.Render(wpmText) + "\n" + style.Render(fmt.Sprintf("\n Paragraph: %d/%d", m.currentChunk, len(m.Chunks)))
 }

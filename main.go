@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 
-	"github.com/areThereAnyUserNamesLeft/typereader/theme"
+	// "github.com/areThereAnyUserNamesLeft/typereader/tui"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui"
-	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui/menu"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"github.com/urfave/cli/v2"
@@ -55,14 +58,12 @@ func main() {
 				chunks = append(chunks, []rune(text))
 			}
 
+			menu := NewMenu()
 			program := tea.NewProgram(
 				tui.Model{
 					TextFile: cCtx.Args().First(),
-					State:    tui.Type,
-					Typing: typing.Model{
-						Chunk: chunks,
-						Theme: theme.DefaultTheme(),
-					},
+					State:    tui.Menu,
+					Menu:     menu,
 				},
 			)
 			eg, _ := errgroup.WithContext(context.Background())
@@ -75,4 +76,39 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func NewMenu() menu.Model {
+	m := menu.Model{}
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error: %s", err.Error())
+	}
+	m.WorkingDir = wd
+	files, err := ioutil.ReadDir(wd)
+	if err != nil {
+		fmt.Printf("Error: %s", err.Error())
+	}
+	files = remove(files)
+	m.Positions = make([]list.Item, len(files))
+	for k, v := range files {
+		p := menu.Item{}
+		// p.Filepath = wd + "/" + v.Name()
+		p.Desc = wd + "/" + v.Name()
+		p.Filename = v.Name()
+		m.Positions[k] = p
+	}
+
+	m.List = list.New(m.Positions, list.NewDefaultDelegate(), 0, 0)
+	m.List.Title = "Files"
+	return m
+}
+
+func remove(files []fs.FileInfo) []fs.FileInfo {
+	for k, v := range files {
+		if v.IsDir() {
+			return remove(append(files[:k], files[k+1:]...))
+		}
+	}
+	return files
 }
