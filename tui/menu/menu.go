@@ -1,6 +1,9 @@
 package menu
 
 import (
+	"fmt"
+
+	"github.com/areThereAnyUserNamesLeft/typereader/state"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,6 +25,7 @@ var (
 
 type Item struct {
 	Filename, Desc string
+	Filepath       *string
 }
 
 type Model struct {
@@ -29,6 +33,9 @@ type Model struct {
 	WorkingDir string
 	Positions  []list.Item
 	List       list.Model
+	Chosen     string
+	Parent     tea.Model
+	HasChosen  bool
 }
 
 func (i Item) Title() string       { return i.Filename }
@@ -40,11 +47,27 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
+type StateChangeMsg struct {
+	State state.State
+	KVs   map[string]string
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if msg.String() == tea.KeyEnter.String() {
+			i, ok := m.List.SelectedItem().(Item)
+			if ok {
+				message := state.StateChangeMsg{
+					State: state.Type,
+					KVs:   map[string]string{"Filepath": *i.Filepath},
+				}
+				fmt.Printf("%#v", message)
+				return m.Parent.Update(message)
+			}
 		}
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()

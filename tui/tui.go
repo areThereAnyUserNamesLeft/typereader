@@ -1,26 +1,22 @@
 package tui
 
 import (
+	"fmt"
+	"io/ioutil"
+
+	"github.com/areThereAnyUserNamesLeft/typereader/state"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/menu"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type State int
-
-const (
-	Unknown State = iota
-	Menu
-	Type
-)
-
 type Model struct {
 	WindowSize tea.WindowSizeMsg
-	State      State
+	State      state.State
 	ConfigPath string
 	TextFile   string
 	Typing     typing.Model
-	Menu       menu.Model
+	Menu       *menu.Model
 }
 
 func (m Model) Init() tea.Cmd {
@@ -34,21 +30,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+	case state.StateChangeMsg:
+		if msg.State == state.Type {
+			m.State = msg.State
+			m.TextFile = msg.KVs["Filepath"]
+			text, err := FromFile(msg.KVs["Filepath"])
+			if err != nil {
+				fmt.Println("this is not a valid filepath %s", msg.KVs["Filepath"])
+			}
+			m.HandleText(text)
+			txtMsg := typing.TextUpdateMsg{
+				Text: text,
+			}
+			return m.Typing.Update(txtMsg)
+		}
 	case tea.WindowSizeMsg:
-		if m.State == Menu {
+		if m.State == state.Menu {
 			m.Menu.Update(msg)
 		}
-		if m.State == Type {
+		if m.State == state.Type {
 			m.Typing.Update(msg)
 		}
 		m.WindowSize = msg
 	}
 	switch m.State {
-	case Menu:
+	case state.Menu:
 		return m.Menu.Update(msg)
-	case Type:
+	case state.Type:
 		return m.Typing.Update(msg)
-
 	default:
 		return m, nil
 	}
@@ -56,13 +65,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	switch m.State {
-	case Menu:
+	case state.Menu:
 		return m.Menu.View()
 
-	case Type:
+	case state.Type:
 		return m.Typing.View()
 
 	default:
 		return ""
 	}
+}
+
+func (m Model) HandleText(text string) Model {
+	t, c := typing.HandleText(text)
+	m.TextFile = t
+	m.Typing.Chunks = c
+	return m
+}
+
+func FromFile(path string) (string, error) {
+	text, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(text), nil
 }

@@ -2,6 +2,7 @@ package typing
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/areThereAnyUserNamesLeft/typereader/theme"
@@ -37,6 +38,10 @@ type Model struct {
 	Theme        *theme.Theme
 }
 
+type TextUpdateMsg struct {
+	Text string
+}
+
 func (m Model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
@@ -46,6 +51,10 @@ func (m Model) Init() tea.Cmd {
 // and adding typed characters to the state if they are valid typing characters
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case TextUpdateMsg:
+		_, c := msg.HandleText()
+		m.Chunks = c
+		return m, nil
 	case tea.KeyMsg:
 		// Start counting time only after the first keystroke
 		if m.Start.IsZero() {
@@ -150,4 +159,26 @@ func (m Model) View() string {
 	style := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("202")).Align(lipgloss.Center).Width(m.WindowSize.Width)
 
 	return style.Render(text) + "\n" + style.Render(wpmText) + "\n" + style.Render(fmt.Sprintf("\n Paragraph: %d/%d", m.currentChunk, len(m.Chunks)))
+}
+
+func (t TextUpdateMsg) HandleText() (string, [][]rune) {
+	return HandleText(t.Text)
+}
+
+func HandleText(text string) (string, [][]rune) {
+	// Replace out all weird quotes for keyboard friendly alternatives
+	text = strings.ReplaceAll(text, "’", "'")
+	text = strings.ReplaceAll(text, "“", "\"")
+	text = strings.ReplaceAll(text, "”", "\"")
+	text = strings.ReplaceAll(text, "—", "-")
+	chunks := [][]rune{}
+	// Break text to be typed one paragraph at a time
+	texts := strings.Split(text, "\n\n")
+
+	for i := range texts {
+		// Trim out the other new lines
+		text = strings.Trim(texts[i], "\n")
+		chunks = append(chunks, []rune(text))
+	}
+	return text, chunks
 }

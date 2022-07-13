@@ -1,17 +1,17 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 
-	// "github.com/areThereAnyUserNamesLeft/typereader/tui"
+	"github.com/areThereAnyUserNamesLeft/typereader/state"
+	"github.com/areThereAnyUserNamesLeft/typereader/theme"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/menu"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
@@ -24,14 +24,6 @@ const (
 	defaultWidth = 60
 )
 
-func FromFile(path string) (string, error) {
-	text, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(text), nil
-}
-
 func main() {
 	app := &cli.App{
 		Name:  "typereader",
@@ -39,34 +31,45 @@ func main() {
 		Flags: []cli.Flag{},
 		Action: func(cCtx *cli.Context) error {
 			termenv.ClearScreen()
-			text, err := FromFile(cCtx.Args().First())
+			text, err := tui.FromFile(cCtx.Args().First())
 			if err != nil {
-				panic(err)
+				fmt.Println("Not a valid filepath %s", cCtx.Args().First())
+			}
+			menu, err := NewMenu(cCtx.Args().First())
+			if err != nil {
+				menu, err = NewMenu("")
 			}
 			// Replace out all weird quotes for keyboard friendly alternatives
-			text = strings.ReplaceAll(text, "’", "'")
-			text = strings.ReplaceAll(text, "“", "\"")
-			text = strings.ReplaceAll(text, "”", "\"")
-			text = strings.ReplaceAll(text, "—", "-")
-			chunks := [][]rune{}
-			// Break text to be typed one paragraph at a time
-			texts := strings.Split(text, "\n\n")
-
-			for i := range texts {
-				// Trim out the other new lines
-				text = strings.Trim(texts[i], "\n")
-				chunks = append(chunks, []rune(text))
-			}
-
-			menu := NewMenu()
-			program := tea.NewProgram(
-				tui.Model{
+			program := &tea.Program{}
+			if text != "" {
+				m := tui.Model{
+					WindowSize: tea.WindowSizeMsg{},
+					State:      state.Type,
+					TextFile:   cCtx.Args().First(),
+					Menu:       &menu,
+					Typing: typing.Model{
+						WindowSize: tea.WindowSizeMsg{},
+						Theme: &theme.Theme{
+							Text: theme.DefaultTheme().Text,
+						},
+					},
+				}.HandleText(text)
+				program = tea.NewProgram(m)
+			} else {
+				m := tui.Model{
 					TextFile: cCtx.Args().First(),
-					State:    tui.Menu,
-					Menu:     menu,
-				},
-			)
-			eg, _ := errgroup.WithContext(context.Background())
+					State:    state.Menu,
+					Menu:     &menu,
+					Typing: typing.Model{
+						Theme: theme.DefaultTheme(),
+					},
+				}
+				m.Menu.Parent = &m
+				program = tea.NewProgram(m)
+
+			}
+			eg, _ := errgroup.WithContext(cCtx.Context)
+
 			eg.Go(func() error {
 				return program.Start()
 			})
@@ -78,30 +81,40 @@ func main() {
 	}
 }
 
-func NewMenu() menu.Model {
-	m := menu.Model{}
+func NewMenu(dir string) (menu.Model, error) {
+	s := ""
+	m := menu.Model{
+		WindowSize: tea.WindowSizeMsg{},
+		WorkingDir: dir,
+		Positions:  []list.Item{},
+		List:       list.Model{},
+		Chosen:     s,
+	}
 	wd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Error: %s", err.Error())
+		return m, fmt.Errorf("could not get working dir: %w", err)
+	}
+	if dir != "" {
+		wd = dir
 	}
 	m.WorkingDir = wd
 	files, err := ioutil.ReadDir(wd)
 	if err != nil {
-		fmt.Printf("Error: %s", err.Error())
+		return m, fmt.Errorf("failed to list directory: %w", err)
 	}
 	files = remove(files)
 	m.Positions = make([]list.Item, len(files))
 	for k, v := range files {
 		p := menu.Item{}
-		// p.Filepath = wd + "/" + v.Name()
+		refString := fmt.Sprintf("%s/%s", wd, v.Name())
+		p.Filepath = &refString
 		p.Desc = wd + "/" + v.Name()
 		p.Filename = v.Name()
 		m.Positions[k] = p
 	}
-
 	m.List = list.New(m.Positions, list.NewDefaultDelegate(), 0, 0)
 	m.List.Title = "Files"
-	return m
+	return m, nil
 }
 
 func remove(files []fs.FileInfo) []fs.FileInfo {
