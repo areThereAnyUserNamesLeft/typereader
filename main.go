@@ -67,33 +67,21 @@ func main() {
 			}
 			// Replace out all weird quotes for keyboard friendly alternatives
 			program := &tea.Program{}
+			m := tui.Model{
+				TextFile: cCtx.Args().First(),
+				State:    state.Menu,
+				Menu:     &menu,
+				Typing: typing.Model{
+					Saves:    saves,
+					SaveFile: saveFile,
+					Theme:    theme.DefaultTheme(),
+				},
+			}
 			if text != "" {
-				m := tui.Model{
-					WindowSize: tea.WindowSizeMsg{},
-					State:      state.Type,
-					TextFile:   cCtx.Args().First(),
-					Menu:       &menu,
-					Typing: typing.Model{
-						WindowSize: tea.WindowSizeMsg{},
-						SaveFile:   saveFile,
-						Saves:      saves,
-						Theme: &theme.Theme{
-							Text: theme.DefaultTheme().Text,
-						},
-					},
-				}.HandleText(text)
+				m.HandleText(text)
+				m.State = state.Type
 				program = tea.NewProgram(m)
 			} else {
-				m := tui.Model{
-					TextFile: cCtx.Args().First(),
-					State:    state.Menu,
-					Menu:     &menu,
-					Typing: typing.Model{
-						Saves:    saves,
-						SaveFile: saveFile,
-						Theme:    theme.DefaultTheme(),
-					},
-				}
 				m.Menu.Parent = &m
 				program = tea.NewProgram(m)
 
