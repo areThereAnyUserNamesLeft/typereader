@@ -31,7 +31,7 @@ type Item struct {
 type Model struct {
 	WindowSize tea.WindowSizeMsg
 	WorkingDir string
-	Positions  []list.Item
+	Options    []list.Item
 	List       list.Model
 	Chosen     string
 	Parent     tea.Model
