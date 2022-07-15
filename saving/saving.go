@@ -1,9 +1,11 @@
-package save
+package saving
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type SaveMsg struct {
@@ -17,10 +19,26 @@ type LoadMsg struct {
 
 type Saves map[string]int
 
-func Save(msg SaveMsg, configFile string, saves LoadMsg) error {
+func VerifySaveFile(saveFile string) bool {
+	_, err := os.Stat(saveFile)
+	if os.IsNotExist(err) {
+		_, err := os.Create(saveFile)
+		if err != nil {
+			return false
+		}
+	} else if err != nil {
+		return false
+	}
+	return true
+}
+
+func Save(msg SaveMsg, saveFile string, saves LoadMsg) error {
+	if !VerifySaveFile(saveFile) {
+		return fmt.Errorf("could not verify file")
+	}
 	if len(saves.Saves) == 0 {
 		var s LoadMsg
-		s, err := Load(configFile)
+		s, err := Load(saveFile)
 		if err != nil {
 			return fmt.Errorf("could not load file: %w", err)
 		}
@@ -32,19 +50,21 @@ func Save(msg SaveMsg, configFile string, saves LoadMsg) error {
 	if err != nil {
 		return fmt.Errorf("could not marshal load message: %w", err)
 	}
-	err = ioutil.WriteFile("words.yaml", data, 0)
+	err = ioutil.WriteFile(saveFile, data, 0)
 	if err != nil {
 		return fmt.Errorf("could not write to file: %w", err)
 	}
 	return nil
 }
 
-func Load(configFile string) (LoadMsg, error) {
-	data, err := ioutil.ReadFile("items.yaml")
+func Load(saveFile string) (LoadMsg, error) {
+	data, err := ioutil.ReadFile(saveFile)
 	if err != nil {
 		return LoadMsg{}, fmt.Errorf("could not read file: %w", err)
 	}
-	msg := LoadMsg{}
+	msg := LoadMsg{
+		Saves: make(map[string]int),
+	}
 	err = yaml.Unmarshal(data, &msg)
 	if err != nil {
 		return LoadMsg{}, fmt.Errorf("could not unmarshall data to yaml from file: %w", err)

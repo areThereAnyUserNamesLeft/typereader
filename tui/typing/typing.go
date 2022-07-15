@@ -2,10 +2,13 @@ package typing
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/areThereAnyUserNamesLeft/typereader/saving"
 	"github.com/areThereAnyUserNamesLeft/typereader/theme"
+
 	// "github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,22 +27,26 @@ var (
 )
 
 type Model struct {
-	WindowSize   tea.WindowSizeMsg
-	currentChunk int
-	Choice       string // for dubugging
-	Next         string // for dubugging
-	spew         string // for dubugging
-	Percent      float64
-	Chunks       [][]rune
-	Typed        []rune
-	Start        time.Time
-	Mistakes     int
-	Score        float64
-	Theme        *theme.Theme
+	WindowSize tea.WindowSizeMsg
+	SaveMsg    saving.SaveMsg
+	Saves      saving.LoadMsg
+	TextFile   string
+	SaveFile   string
+	Choice     string // for dubugging
+	Next       string // for dubugging
+	spew       string // for dubugging
+	Percent    float64
+	Chunks     [][]rune
+	Typed      []rune
+	Start      time.Time
+	Mistakes   int
+	Score      float64
+	Theme      *theme.Theme
 }
 
 type TextUpdateMsg struct {
-	Text string
+	TextFile string
+	Text     string
 }
 
 func (m Model) Init() tea.Cmd {
@@ -52,6 +59,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TextUpdateMsg:
+		m.TextFile = msg.TextFile
 		_, c := msg.HandleText()
 		m.Chunks = c
 		return m, nil
@@ -82,20 +90,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Bounce to the next chunk when we are done with the current one
-		if len(m.Typed) >= len(m.Chunks[m.currentChunk]) {
-			m.currentChunk++
+		if len(m.Typed) >= len(m.Chunks[m.SaveMsg.ChunkNumber]) {
 			m.Percent = 0
 			m.Typed = []rune{}
+
+			m.SaveMsg.ChunkNumber++
+			absoluteFilename, err := filepath.Abs(m.TextFile)
+			if err != nil {
+				panic(fmt.Sprintf("cannot get absolute filepath for: %s: err = %s", m.TextFile, err.Error()))
+			}
+			m.SaveMsg.FileName = absoluteFilename
+			err = saving.Save(
+				m.SaveMsg,
+				m.SaveFile,
+				m.Saves,
+			)
+			if err != nil {
+				panic("could not save progress: " + err.Error())
+			}
 			return m, nil
 		}
 
 		char := msg.Runes[0]
 		m.Choice = string(msg.Runes[0])
-		next := rune(m.Chunks[m.currentChunk][len(m.Typed)])
-		if len(m.Typed) == len(m.Chunks[m.currentChunk])-1 {
-			m.Next = string(m.Chunks[m.currentChunk+1][0])
+		next := rune(m.Chunks[m.SaveMsg.ChunkNumber][len(m.Typed)])
+		if len(m.Typed) == len(m.Chunks[m.SaveMsg.ChunkNumber])-1 {
+			m.Next = string(m.Chunks[m.SaveMsg.ChunkNumber+1][0])
 		} else {
-			m.Next = string(m.Chunks[m.currentChunk][len(m.Typed)+1])
+			m.Next = string(m.Chunks[m.SaveMsg.ChunkNumber][len(m.Typed)+1])
 		}
 
 		m.Typed = append(m.Typed, msg.Runes...)
@@ -118,16 +140,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the typed characters (with errors displayed in red) and remaining
 // characters to be typed in a faint display
 func (m Model) View() string {
-	remaining := m.Chunks[m.currentChunk][len(m.Typed):]
+	remaining := m.Chunks[m.SaveMsg.ChunkNumber][len(m.Typed):]
 
 	var typed string
 	for i, c := range m.Typed {
-		if c == rune(m.Chunks[m.currentChunk][i]) {
+		if c == rune(m.Chunks[m.SaveMsg.ChunkNumber][i]) {
 			typed += m.Theme.StringColor(m.Theme.Text.Typed, string(c)).String()
-		} else if c == ' ' && rune(m.Chunks[m.currentChunk][i]) == '\n' { // && c == ' ' {
+		} else if c == ' ' && rune(m.Chunks[m.SaveMsg.ChunkNumber][i]) == '\n' { // && c == ' ' {
 			typed += m.Theme.StringColor(m.Theme.Text.Typed, string('\n')).String()
 		} else {
-			typed += m.Theme.StringColor(m.Theme.Text.Error, string(m.Chunks[m.currentChunk][i])).String()
+			typed += m.Theme.StringColor(m.Theme.Text.Error, string(m.Chunks[m.SaveMsg.ChunkNumber][i])).String()
 		}
 		m.spew = fmt.Sprintf("c = '%s'", string(c))
 	}
@@ -158,7 +180,7 @@ func (m Model) View() string {
 	)
 	style := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("202")).Align(lipgloss.Center).Width(m.WindowSize.Width)
 
-	return style.Render(text) + "\n" + style.Render(wpmText) + "\n" + style.Render(fmt.Sprintf("\n Paragraph: %d/%d", m.currentChunk, len(m.Chunks)))
+	return style.Render(text) + "\n" + style.Render(wpmText) + "\n" + style.Render(fmt.Sprintf("\n Paragraph: %d/%d", m.SaveMsg.ChunkNumber, len(m.Chunks)))
 }
 
 func (t TextUpdateMsg) HandleText() (string, [][]rune) {
