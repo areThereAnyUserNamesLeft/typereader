@@ -113,7 +113,7 @@ func NewMenu(dir string) (menu.Model, error) {
 		m.Positions[k] = p
 	}
 	m.List = list.New(m.Positions, list.NewDefaultDelegate(), 0, 0)
-	m.List.Title = "Files"
+	m.List.Title = "Please choose your file"
 	return m, nil
 }
 

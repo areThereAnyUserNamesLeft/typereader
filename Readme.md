@@ -7,7 +7,7 @@ I go on holiday soon and I want something similar to [typelit](https://www.typel
 - [x] Display text and write over it as the cursor moves along
 - [x] Read text in from a file
 - [x] Validate and colorise
-- [ ] Menus and feature
+- [x] Menus and feature
+- [x] Remember position
 - [ ] Scoring 
-- [ ] Remember position
 
