@@ -2,6 +2,9 @@ package menu
 
 import (
 	"fmt"
+	"io/fs"
+	"io/ioutil"
+	"os"
 
 	"github.com/areThereAnyUserNamesLeft/typereader/state"
 	"github.com/charmbracelet/bubbles/list"
@@ -81,4 +84,50 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	return docStyle.Render(m.List.View())
+}
+
+func NewDirMenu(dir string) (Model, error) {
+	s := ""
+	m := Model{
+		WindowSize: tea.WindowSizeMsg{},
+		WorkingDir: dir,
+		Options:    []list.Item{},
+		List:       list.Model{},
+		Chosen:     s,
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return m, fmt.Errorf("could not get working dir: %w", err)
+	}
+	if dir != "" {
+		wd = dir
+	}
+	m.WorkingDir = wd
+	files, err := ioutil.ReadDir(wd)
+
+	if err != nil {
+		return m, fmt.Errorf("failed to list directory: %w", err)
+	}
+	files = remove(files)
+	m.Options = make([]list.Item, len(files))
+	for k, v := range files {
+		p := Item{}
+		refString := fmt.Sprintf("%s/%s", wd, v.Name())
+		p.Filepath = &refString
+		p.Desc = wd + "/" + v.Name()
+		p.Filename = v.Name()
+		m.Options[k] = p
+	}
+	m.List = list.New(m.Options, list.NewDefaultDelegate(), 0, 0)
+	m.List.Title = "Please choose your file"
+	return m, nil
+}
+
+func remove(files []fs.FileInfo) []fs.FileInfo {
+	for k, v := range files {
+		if v.IsDir() {
+			return remove(append(files[:k], files[k+1:]...))
+		}
+	}
+	return files
 }

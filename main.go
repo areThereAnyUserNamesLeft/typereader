@@ -61,9 +61,9 @@ func main() {
 			if err != nil {
 				fmt.Println("Not a valid filepath %s", cCtx.Args().First())
 			}
-			menu, err := NewDirMenu(cCtx.Args().First())
+			dirMenu, err := menu.NewDirMenu(cCtx.Args().First())
 			if err != nil {
-				menu, err = NewDirMenu("")
+				dirMenu, err = menu.NewDirMenu("")
 			}
 			// Replace out all weird quotes for keyboard friendly alternatives
 			program := &tea.Program{}
@@ -97,51 +97,6 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func NewDirMenu(dir string) (menu.Model, error) {
-	s := ""
-	m := menu.Model{
-		WindowSize: tea.WindowSizeMsg{},
-		WorkingDir: dir,
-		Options:    []list.Item{},
-		List:       list.Model{},
-		Chosen:     s,
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return m, fmt.Errorf("could not get working dir: %w", err)
-	}
-	if dir != "" {
-		wd = dir
-	}
-	m.WorkingDir = wd
-	files, err := ioutil.ReadDir(wd)
-	if err != nil {
-		return m, fmt.Errorf("failed to list directory: %w", err)
-	}
-	files = remove(files)
-	m.Options = make([]list.Item, len(files))
-	for k, v := range files {
-		p := menu.Item{}
-		refString := fmt.Sprintf("%s/%s", wd, v.Name())
-		p.Filepath = &refString
-		p.Desc = wd + "/" + v.Name()
-		p.Filename = v.Name()
-		m.Options[k] = p
-	}
-	m.List = list.New(m.Options, list.NewDefaultDelegate(), 0, 0)
-	m.List.Title = "Please choose your file"
-	return m, nil
-}
-
-func remove(files []fs.FileInfo) []fs.FileInfo {
-	for k, v := range files {
-		if v.IsDir() {
-			return remove(append(files[:k], files[k+1:]...))
-		}
-	}
-	return files
 }
 
 func createConfigDir(dir string) error {
