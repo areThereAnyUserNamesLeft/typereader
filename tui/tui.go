@@ -39,8 +39,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println("this is not a valid filepath %s", msg.KVs["Filepath"])
 			}
 			m.HandleText(text)
+
 			txtMsg := typing.TextUpdateMsg{
-				Text: text,
+				Text:     text,
+				TextFile: msg.KVs["Filepath"],
 			}
 			return m.Typing.Update(txtMsg)
 		}
