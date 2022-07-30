@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/areThereAnyUserNamesLeft/typereader/state"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/choose"
@@ -12,7 +13,6 @@ import (
 )
 
 type Model struct {
-	Parent     *tea.Model
 	WindowSize tea.WindowSizeMsg
 	State      state.State
 	ConfigPath string
@@ -37,15 +37,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.State == state.Type {
 			m.State = msg.State
 			m.TextFile = msg.KVs["Filepath"]
+
 			text, err := FromFile(msg.KVs["Filepath"])
 			if err != nil {
 				fmt.Println("this is not a valid filepath %s", msg.KVs["Filepath"])
 			}
 			m.HandleText(text)
+			locStr := msg.KVs["Position"]
+			loc, err := strconv.Atoi(locStr)
+			if err != nil {
+				loc = 0
+			}
 
 			txtMsg := typing.TextUpdateMsg{
-				Text:     text,
-				TextFile: msg.KVs["Filepath"],
+				TextFile:  msg.KVs["Filepath"],
+				Paragraph: loc,
+				Text:      text,
 			}
 			return m.Typing.Update(txtMsg)
 		}

@@ -30,6 +30,12 @@ var (
 			Usage: "Location of your saves and configration files",
 			Value: "$HOME/.config/typereader/",
 		},
+		&cli.BoolFlag{
+			Name:    "use-saves",
+			Usage:   "Use saves rather than choosing from current directory",
+			Value:   false,
+			Aliases: []string{"s", "S"},
+		},
 	}
 )
 
@@ -40,6 +46,7 @@ func main() {
 		Flags: flags,
 		Action: func(cCtx *cli.Context) error {
 			termenv.ClearScreen()
+			text := ""
 			configDir := os.ExpandEnv(cCtx.String("config-directory"))
 			err := createConfigDir(configDir)
 			if err != nil {
@@ -53,9 +60,8 @@ func main() {
 			if err != nil {
 
 			}
-			text := ""
 			if cCtx.Args().First() != "" {
-				text, err = tui.FromFile(cCtx.Args().First())
+				text, err = tui.FromFile(os.ExpandEnv(cCtx.Args().First()))
 				if err != nil {
 					fmt.Printf("Not a valid filepath %s", cCtx.Args().First())
 				}
@@ -76,16 +82,17 @@ func main() {
 					Theme:    theme.DefaultTheme(),
 				},
 			}
-			// if we have opted for a text file - use it
-			if text != "" {
-				m.HandleText(text)
-				m.State = state.Type
-				program = tea.NewProgram(m)
+			if cCtx.Bool("use-saves") {
 				// if we have more than one save - choose it
-			} else if len(saves.Saves) >= 1 {
 				m.State = state.Choose
 				m.Choose = choose.New(saves.Saves)
 				m.Choose.Parent = &m
+				program = tea.NewProgram(m)
+			} else if text != "" {
+				// if we have opted for a text file - use it
+				m := m.HandleText(text)
+
+				m.State = state.Type
 				program = tea.NewProgram(m)
 
 			} else {
