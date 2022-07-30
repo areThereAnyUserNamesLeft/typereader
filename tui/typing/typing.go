@@ -27,6 +27,7 @@ var (
 )
 
 type Model struct {
+	Parent     *tea.Model
 	WindowSize tea.WindowSizeMsg
 	SaveMsg    saving.SaveMsg
 	Saves      saving.LoadMsg
@@ -45,8 +46,9 @@ type Model struct {
 }
 
 type TextUpdateMsg struct {
-	TextFile string
-	Text     string
+	TextFile  string
+	Paragraph int
+	Text      string
 }
 
 func (m Model) Init() tea.Cmd {
@@ -62,6 +64,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.TextFile = msg.TextFile
 		_, c := msg.HandleText()
 		m.Chunks = c
+		m.SaveMsg.ChunkNumber = msg.Paragraph
 		return m, nil
 	case tea.KeyMsg:
 		// Start counting time only after the first keystroke

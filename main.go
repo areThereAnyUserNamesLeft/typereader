@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -11,9 +9,9 @@ import (
 	"github.com/areThereAnyUserNamesLeft/typereader/state"
 	"github.com/areThereAnyUserNamesLeft/typereader/theme"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui/choose"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/menu"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"github.com/urfave/cli/v2"
@@ -32,6 +30,12 @@ var (
 			Usage: "Location of your saves and configration files",
 			Value: "$HOME/.config/typereader/",
 		},
+		&cli.BoolFlag{
+			Name:    "use-saves",
+			Usage:   "Use saves rather than choosing from current directory",
+			Value:   false,
+			Aliases: []string{"s", "S"},
+		},
 	}
 )
 
@@ -42,24 +46,25 @@ func main() {
 		Flags: flags,
 		Action: func(cCtx *cli.Context) error {
 			termenv.ClearScreen()
-			err := createConfigDir(cCtx.String("config-directory"))
+			text := ""
+			configDir := os.ExpandEnv(cCtx.String("config-directory"))
+			err := createConfigDir(configDir)
 			if err != nil {
 				return fmt.Errorf("could not create config dir: %w", err)
 			}
-			saveFile := fmt.Sprintf("%s/saves.yaml", cCtx.String("config-directory"))
+			saveFile := fmt.Sprintf("%s/saves.yaml", configDir)
 			if !saving.VerifySaveFile(saveFile) {
 				return fmt.Errorf("could not create savefile")
 			}
-			saves, err := saving.Load(fmt.Sprintf("%s/saves.yaml", cCtx.String("config-directory")))
+			saves, err := saving.Load(fmt.Sprintf("%s/saves.yaml", configDir))
 			if err != nil {
-				return fmt.Errorf("could not load saves: %w", err)
+
 			}
-			text, err := tui.FromFile(cCtx.Args().First())
-			if err != nil {
-				fmt.Println("Not a valid filepath %s", cCtx.Args().First())
-			}
-			if err != nil {
-				fmt.Println("Not a valid filepath %s", cCtx.Args().First())
+			if cCtx.Args().First() != "" {
+				text, err = tui.FromFile(os.ExpandEnv(cCtx.Args().First()))
+				if err != nil {
+					fmt.Printf("Not a valid filepath %s", cCtx.Args().First())
+				}
 			}
 			dirMenu, err := menu.NewDirMenu(cCtx.Args().First())
 			if err != nil {
@@ -70,21 +75,30 @@ func main() {
 			m := tui.Model{
 				TextFile: cCtx.Args().First(),
 				State:    state.Menu,
-				Menu:     &menu,
+				Menu:     &dirMenu,
 				Typing: typing.Model{
 					Saves:    saves,
 					SaveFile: saveFile,
 					Theme:    theme.DefaultTheme(),
 				},
 			}
-			if text != "" {
-				m.HandleText(text)
+			if cCtx.Bool("use-saves") {
+				// if we have more than one save - choose it
+				m.State = state.Choose
+				m.Choose = choose.New(saves.Saves)
+				m.Choose.Parent = &m
+				program = tea.NewProgram(m)
+			} else if text != "" {
+				// if we have opted for a text file - use it
+				m := m.HandleText(text)
+
 				m.State = state.Type
 				program = tea.NewProgram(m)
+
 			} else {
+				m.State = state.Menu
 				m.Menu.Parent = &m
 				program = tea.NewProgram(m)
-
 			}
 			eg, _ := errgroup.WithContext(cCtx.Context)
 
