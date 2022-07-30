@@ -45,8 +45,9 @@ type Model struct {
 }
 
 type TextUpdateMsg struct {
-	TextFile string
-	Text     string
+	TextFile  string
+	Paragraph int
+	Text      string
 }
 
 func (m Model) Init() tea.Cmd {

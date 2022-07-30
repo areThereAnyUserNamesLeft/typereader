@@ -5,18 +5,21 @@ import (
 	"io/ioutil"
 
 	"github.com/areThereAnyUserNamesLeft/typereader/state"
+	"github.com/areThereAnyUserNamesLeft/typereader/tui/choose"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/menu"
 	"github.com/areThereAnyUserNamesLeft/typereader/tui/typing"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Model struct {
+	Parent     *tea.Model
 	WindowSize tea.WindowSizeMsg
 	State      state.State
 	ConfigPath string
 	TextFile   string
 	Typing     typing.Model
 	Menu       *menu.Model
+	Choose     choose.Model
 }
 
 func (m Model) Init() tea.Cmd {
@@ -53,6 +56,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.State == state.Type {
 			m.Typing.Update(msg)
 		}
+		if m.State == state.Choose {
+			m.Choose.Update(msg)
+		}
 		m.WindowSize = msg
 	}
 	switch m.State {
@@ -60,6 +66,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.Menu.Update(msg)
 	case state.Type:
 		return m.Typing.Update(msg)
+	case state.Choose:
+		return m.Choose.Update(msg)
 	default:
 		return m, nil
 	}
@@ -69,10 +77,10 @@ func (m Model) View() string {
 	switch m.State {
 	case state.Menu:
 		return m.Menu.View()
-
 	case state.Type:
 		return m.Typing.View()
-
+	case state.Choose:
+		return m.Choose.View()
 	default:
 		return ""
 	}

@@ -6,6 +6,7 @@ const (
 	Unknown State = iota
 	Menu
 	Type
+	Choose
 )
 
 type StateChangeMsg struct {

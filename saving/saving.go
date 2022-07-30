@@ -38,11 +38,15 @@ func Save(msg SaveMsg, saveFile string, saves LoadMsg) error {
 	}
 	if len(saves.Saves) == 0 {
 		var s LoadMsg
+
 		s, err := Load(saveFile)
 		if err != nil {
 			return fmt.Errorf("could not load file: %w", err)
 		}
 		saves = s
+	}
+	if saves.Saves == nil {
+		saves.Saves = make(map[string]int)
 	}
 	saves.Saves[msg.FileName] = msg.ChunkNumber
 
@@ -58,16 +62,17 @@ func Save(msg SaveMsg, saveFile string, saves LoadMsg) error {
 }
 
 func Load(saveFile string) (LoadMsg, error) {
+	saves := make(map[string]int) // return should always have a made map.
 	data, err := ioutil.ReadFile(saveFile)
 	if err != nil {
-		return LoadMsg{}, fmt.Errorf("could not read file: %w", err)
+		return LoadMsg{Saves: saves}, fmt.Errorf("could not read file: %w", err)
 	}
 	msg := LoadMsg{
 		Saves: make(map[string]int),
 	}
 	err = yaml.Unmarshal(data, &msg)
 	if err != nil {
-		return LoadMsg{}, fmt.Errorf("could not unmarshall data to yaml from file: %w", err)
+		return LoadMsg{Saves: saves}, fmt.Errorf("could not unmarshall data to yaml from file: %w", err)
 	}
 	return msg, nil
 }
