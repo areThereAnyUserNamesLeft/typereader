@@ -28,7 +28,7 @@ var (
 		&cli.StringFlag{
 			Name:  "config-directory",
 			Usage: "Location of your saves and configration files",
-			Value: "~/.config/typereader",
+			Value: "$HOME/.config/typereader/",
 		},
 		&cli.BoolFlag{
 			Name:    "use-saves",
