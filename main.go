@@ -86,6 +86,7 @@ func main() {
 				// if we have opted for a text file - use it
 				m := m.HandleText(text)
 				m.State = state.Type
+				m.TextFile = cCtx.Args().First()
 				program = tea.NewProgram(m)
 
 			} else {
