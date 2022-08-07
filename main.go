@@ -116,7 +116,7 @@ func main() {
 func createConfigDir(dir string) error {
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
-		err = os.Mkdir(dir, 0755)
+		err = os.MkdirAll(dir, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("could not mkdir config dir at %s: %w", dir, err)
 		}
