@@ -66,16 +66,10 @@ func main() {
 					fmt.Printf("Not a valid filepath %s", cCtx.Args().First())
 				}
 			}
-			dirMenu, err := menu.NewDirMenu(cCtx.Args().First())
-			if err != nil {
-				dirMenu, err = menu.NewDirMenu("")
-			}
 			// Replace out all weird quotes for keyboard friendly alternatives
 			program := &tea.Program{}
 			m := tui.Model{
 				TextFile: cCtx.Args().First(),
-				State:    state.Menu,
-				Menu:     &dirMenu,
 				Typing: typing.Model{
 					Saves:    saves,
 					SaveFile: saveFile,
@@ -91,13 +85,20 @@ func main() {
 			} else if text != "" {
 				// if we have opted for a text file - use it
 				m := m.HandleText(text)
-
 				m.State = state.Type
+				m.TextFile = os.ExpandEnv(cCtx.Args().First())
+				m.Typing.TextFile = os.ExpandEnv(cCtx.Args().First())
 				program = tea.NewProgram(m)
 
 			} else {
-				m.State = state.Menu
+				// if the first argument is a dir chose from that otherwise use current dir
 				m.Menu.Parent = &m
+				m.State = state.Menu
+				dirMenu, err := menu.NewDirMenu(cCtx.Args().First())
+				if err != nil {
+					dirMenu, _ = menu.NewDirMenu("")
+				}
+				m.Menu = &dirMenu
 				program = tea.NewProgram(m)
 			}
 			eg, _ := errgroup.WithContext(cCtx.Context)
