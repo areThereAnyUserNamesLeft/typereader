@@ -106,7 +106,6 @@ func main() {
 			})
 			return eg.Wait()
 		},
-			}
 	}
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
